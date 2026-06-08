@@ -1,0 +1,4 @@
+interface:
+  display_name: "Adversarial Review"
+  short_description: "Independent critique for code, plans, and diffs"
+  default_prompt: "Use $adversarial-review to challenge this diff with independent reviewers before I ship it."
