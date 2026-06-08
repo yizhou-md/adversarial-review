@@ -9,6 +9,8 @@ root = Path("skills/adversarial-review")
 skill = root / "SKILL.md"
 openai_yaml = root / "agents" / "openai.yaml"
 license_file = Path("LICENSE")
+readme = Path("README.md")
+readme_zh = Path("README-zh.md")
 
 for path in (skill, openai_yaml, license_file):
     if not path.exists():
@@ -52,18 +54,19 @@ route_policy_forbidden = (
     "If the route is not obvious, choose",
 )
 for forbidden in route_policy_forbidden:
-    for path in (Path("README.md"), skill):
+    for path in (readme, skill):
         if forbidden in path.read_text():
             raise SystemExit(f"{path} contains automatic route selection language: {forbidden}")
 
-if "user-specified route" not in Path("README.md").read_text():
+if "user-specified route" not in readme.read_text():
     raise SystemExit("README.md must explain that reviewers run through a user-specified route")
 
-readme_text = Path("README.md").read_text()
+readme_text = readme.read_text()
 for required in (
     "pnpx skills add https://github.com/yizhou-md/adversarial-review --skill adversarial-review",
     "pedronauck/skills",
     "## Reviewer Lenses",
+    "## When Not To Use",
     "Skeptic",
     "Architect",
     "Minimalist",
@@ -74,6 +77,15 @@ for required in (
     if required not in readme_text:
         raise SystemExit(f"README.md missing required documentation text: {required}")
 
+readme_section_order = (
+    "## Reviewer Lenses",
+    "## Reviewer Routes",
+    "## When Not To Use",
+)
+readme_section_positions = [readme_text.find(section) for section in readme_section_order]
+if any(position == -1 for position in readme_section_positions) or readme_section_positions != sorted(readme_section_positions):
+    raise SystemExit("README.md sections must be ordered: Reviewer Lenses, Reviewer Routes, When Not To Use")
+
 for forbidden in (
     "cp -R skills/adversarial-review .codex/skills/",
     "For Codex workspaces, keep the skill project-local when possible",
@@ -82,7 +94,6 @@ for forbidden in (
     if forbidden in readme_text:
         raise SystemExit(f"README.md contains outdated documentation text: {forbidden}")
 
-readme_zh = Path("README-zh.md")
 if not readme_zh.exists():
     raise SystemExit("README-zh.md missing")
 
@@ -97,15 +108,25 @@ for required in (
     "pnpx skills add https://github.com/yizhou-md/adversarial-review --skill adversarial-review",
     "pedronauck/skills",
     "## 评审视角",
+    "## 何时不使用",
     "Skeptic",
     "Architect",
     "Minimalist",
     "检查工作是否正确、完整，并且已经被充分验证",
     "检查结构、边界和契约是否服务于既定目标",
-    "检查实现是否可以更简单、更小",
+    "检查实现是否可以更简单、更小、更少猜测",
 ):
     if required not in readme_zh_text:
         raise SystemExit(f"README-zh.md missing required documentation text: {required}")
+
+readme_zh_section_order = (
+    "## 评审视角",
+    "## 评审路径",
+    "## 何时不使用",
+)
+readme_zh_section_positions = [readme_zh_text.find(section) for section in readme_zh_section_order]
+if any(position == -1 for position in readme_zh_section_positions) or readme_zh_section_positions != sorted(readme_zh_section_positions):
+    raise SystemExit("README-zh.md sections must be ordered: 评审视角, 评审路径, 何时不使用")
 
 for forbidden in (
     "cp -R skills/adversarial-review .codex/skills/",
@@ -117,6 +138,47 @@ for forbidden in (
 
 if "The user must explicitly specify the reviewer route" not in skill_text:
     raise SystemExit("SKILL.md must require an explicit user-specified reviewer route")
+
+for required in (
+    "Risk overrides size",
+    "security, privacy, data loss, migrations, concurrency, permissions, dependency changes, or external publishing",
+    "mktemp -d -t adversarial-review.XXXXXX",
+    "trap 'rm -rf \"$REVIEW_WORK_DIR\"' EXIT",
+    "command -v codex",
+    "command -v claude",
+    "reviewer produced no output",
+):
+    if required not in skill_text:
+        raise SystemExit(f"SKILL.md missing required workflow safeguard: {required}")
+
+for forbidden in (
+    "mktemp -d /tmp/adversarial-review.XXXXXX",
+):
+    if forbidden in skill_text:
+        raise SystemExit(f"SKILL.md contains unsafe CLI example text: {forbidden}")
+
+workflow_requirements = {
+    "route missing asks instead of infers": (
+        "If the route is missing, ask the user to choose",
+        "Do not silently substitute a different route",
+    ),
+    "reviewers are read-only by default": (
+        "Reviewers must be read-only by default",
+        "static review packet instead of workspace access",
+    ),
+    "missing reviewer output is evidence": (
+        "Missing reviewer output is evidence",
+        "Mark missing or empty outputs",
+    ),
+    "lead rejects overreaching findings": (
+        "Reject false positives explicitly",
+        "Adversarial reviewers are expected to overreach sometimes",
+    ),
+}
+for requirement, snippets in workflow_requirements.items():
+    for snippet in snippets:
+        if snippet not in skill_text:
+            raise SystemExit(f"SKILL.md missing workflow requirement ({requirement}): {snippet}")
 
 for forbidden in (
     "/Users/yi",
@@ -149,5 +211,5 @@ license_text = license_file.read_text()
 if not license_text.startswith("MIT License\n"):
     raise SystemExit("LICENSE must use the MIT License text")
 
-print("skill package validation passed")
+print("skill package and workflow validation passed")
 PY

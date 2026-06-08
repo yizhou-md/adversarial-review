@@ -25,15 +25,17 @@ Use independent reviewers to attack whether the work achieves the stated intent.
 2. Freeze the review scope: current diff, staged diff, commit range, PR, plan, files, or user-provided artifact.
 3. Confirm the user-specified reviewer route. If it is missing or ambiguous, ask the user which route to use and stop until they answer.
 4. Collect evidence. For git work, prefer `git status --short`, `git diff --stat`, and the relevant `git diff` or PR diff. If there is no git repo, list the files or artifact sections being reviewed.
-5. Choose reviewers from the size table and dispatch them with the lens prompts below through the specified route. Run reviewers in parallel when the tool permits it.
+5. Choose reviewers from the risk table and dispatch them with the lens prompts below through the specified route. Run reviewers in parallel when the tool permits it.
 6. Verify each reviewer produced output.
 7. Deduplicate findings, apply lead judgment, and return the verdict format.
 
-| Scope size | Default reviewers |
-| --- | --- |
-| Small: under 50 changed lines or 1-2 small files | Skeptic |
-| Medium: 50-200 changed lines or 3-5 files | Skeptic, Architect |
-| Large: over 200 changed lines, more than 5 files, cross-module changes, or high-risk work | Skeptic, Architect, Minimalist |
+Risk overrides size. Changed-line count is only the starting signal; upgrade the reviewer set when the change touches security, privacy, data loss, migrations, concurrency, permissions, dependency changes, or external publishing.
+
+| Risk profile | Examples | Default reviewers |
+| --- | --- | --- |
+| Low | Under 50 changed lines, 1-2 small files, docs-only, tests-only, or isolated implementation with no contract change | Skeptic |
+| Moderate | 50-200 changed lines, 3-5 files, API or prompt contract changes, non-trivial refactors, or behavior that needs architectural judgment | Skeptic, Architect |
+| High | Over 200 changed lines, more than 5 files, cross-module changes, privileged tool access, persistence, destructive operations, or any high-impact failure mode | Skeptic, Architect, Minimalist |
 
 ## Reviewer Route Selection
 
@@ -65,31 +67,77 @@ Use normal local configuration by default. Prefer ephemeral or no-session-persis
 Codex reviewer example:
 
 ```sh
-REVIEW_DIR="$(mktemp -d /tmp/adversarial-review.XXXXXX)"
-PROMPT_FILE="$REVIEW_DIR/skeptic-prompt.md"
+set -euo pipefail
+
+command -v codex >/dev/null 2>&1 || {
+  echo "codex CLI not found" >&2
+  exit 1
+}
+
+REVIEW_WORK_DIR="$(mktemp -d -t adversarial-review.XXXXXX)"
+trap 'rm -rf "$REVIEW_WORK_DIR"' EXIT
+
+OUTPUT_DIR="${OUTPUT_DIR:-$PWD/review-output}"
+mkdir -p "$OUTPUT_DIR"
+
+PROMPT_FILE="$REVIEW_WORK_DIR/skeptic-prompt.md"
+OUTPUT_FILE="$OUTPUT_DIR/skeptic.md"
 # Write the reviewer prompt packet to "$PROMPT_FILE" before running the CLI.
+test -s "$PROMPT_FILE" || {
+  echo "missing reviewer prompt: $PROMPT_FILE" >&2
+  exit 1
+}
+
 codex exec \
   --skip-git-repo-check \
   --ephemeral \
   --sandbox read-only \
   -C "$PWD" \
-  -o "$REVIEW_DIR/skeptic.md" \
+  -o "$OUTPUT_FILE" \
   - < "$PROMPT_FILE"
+
+test -s "$OUTPUT_FILE" || {
+  echo "reviewer produced no output: $OUTPUT_FILE" >&2
+  exit 1
+}
 ```
 
 Claude static-packet reviewer example:
 
 ```sh
-REVIEW_DIR="$(mktemp -d /tmp/adversarial-review.XXXXXX)"
-PROMPT_FILE="$REVIEW_DIR/skeptic-prompt.md"
+set -euo pipefail
+
+command -v claude >/dev/null 2>&1 || {
+  echo "claude CLI not found" >&2
+  exit 1
+}
+
+REVIEW_WORK_DIR="$(mktemp -d -t adversarial-review.XXXXXX)"
+trap 'rm -rf "$REVIEW_WORK_DIR"' EXIT
+
+OUTPUT_DIR="${OUTPUT_DIR:-$PWD/review-output}"
+mkdir -p "$OUTPUT_DIR"
+
+PROMPT_FILE="$REVIEW_WORK_DIR/skeptic-prompt.md"
+OUTPUT_FILE="$OUTPUT_DIR/skeptic.md"
 # Write the reviewer prompt packet to "$PROMPT_FILE" before running the CLI.
+test -s "$PROMPT_FILE" || {
+  echo "missing reviewer prompt: $PROMPT_FILE" >&2
+  exit 1
+}
+
 claude \
   --print \
   --no-session-persistence \
   --output-format text \
   --tools "" \
   < "$PROMPT_FILE" \
-  > "$REVIEW_DIR/skeptic.md"
+  > "$OUTPUT_FILE"
+
+test -s "$OUTPUT_FILE" || {
+  echo "reviewer produced no output: $OUTPUT_FILE" >&2
+  exit 1
+}
 ```
 
 If a Claude reviewer must inspect the workspace directly instead of a static packet, constrain it with that host's read-only, planning, or tool-deny mode and record the exact permission posture.

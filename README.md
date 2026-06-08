@@ -56,9 +56,16 @@ The user should name the route to use. The skill does not choose a route just be
 
 Reviewer tools should load normal user and project configuration by default. That keeps local rules, team policies, and project conventions active during review. Reviewers should still be read-only by default; if a route cannot be constrained, pass a static review packet instead of workspace access.
 
+## When Not To Use
+
+- Do not use this skill for quick self-checks where the user has not asked for an independent adversarial route.
+- Do not use it when the user has not specified a reviewer route; ask for the route first.
+- Do not use it as an editing or remediation workflow unless the user explicitly asks for fixes after the review.
+- Do not use it for style-only proofreading, formatting, or lint cleanup where no independent risk review is needed.
+
 ## Validate
 
-This repository includes a lightweight validation script:
+This repository includes a lightweight package and workflow validation script. It checks the skill package structure, route policy, documentation, and core workflow invariants; it does not dispatch real reviewer tools.
 
 ```sh
 ./runtest.sh
