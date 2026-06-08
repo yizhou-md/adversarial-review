@@ -9,23 +9,25 @@ Use independent reviewers to attack whether the work achieves the stated intent.
 
 ## Core Rules
 
-- The user's requested reviewer route wins: same tool, different tool, specific CLI, subagent, or manual fallback.
-- Prefer more independence, but do not require a different model. A well-isolated same-tool subagent is valid.
+- The user must explicitly specify the reviewer route: same tool, different tool, specific CLI, subagent, or manual fallback.
+- If the user has not specified a reviewer route, stop and ask which route to use before dispatching reviewers.
+- Stronger independence is desirable, but it is not a reason to override or infer the route. A well-isolated same-tool subagent is valid when the user specifies it.
 - Keep reviewer context minimal: intent, scope, evidence, assigned lens, and the review contract. Do not pass the lead agent's draft conclusions.
 - Reviewers must be read-only by default. If a reviewer cannot be constrained to read-only, send a static review packet instead of workspace access.
 - Reviewer tools should load their normal user and project configuration by default so local rules, policies, and team conventions are respected.
 - Missing reviewer output is evidence. Report it; do not silently synthesize around it.
 - Adversarial does not mean hostile. Findings need concrete failure scenarios, file or artifact references, and actionable recommendations.
-- Do not install a missing reviewer tool just to run this skill unless the user explicitly approves installation. Fall back and disclose the limitation.
+- Do not install a missing reviewer tool just to run this skill unless the user explicitly approves installation. If the requested route cannot run, report the failed route and ask whether to use another route.
 
 ## Workflow
 
 1. State the intent in one or two sentences.
 2. Freeze the review scope: current diff, staged diff, commit range, PR, plan, files, or user-provided artifact.
-3. Collect evidence. For git work, prefer `git status --short`, `git diff --stat`, and the relevant `git diff` or PR diff. If there is no git repo, list the files or artifact sections being reviewed.
-4. Choose reviewers from the size table and dispatch them with the lens prompts below. Run reviewers in parallel when the tool permits it.
-5. Verify each reviewer produced output.
-6. Deduplicate findings, apply lead judgment, and return the verdict format.
+3. Confirm the user-specified reviewer route. If it is missing or ambiguous, ask the user which route to use and stop until they answer.
+4. Collect evidence. For git work, prefer `git status --short`, `git diff --stat`, and the relevant `git diff` or PR diff. If there is no git repo, list the files or artifact sections being reviewed.
+5. Choose reviewers from the size table and dispatch them with the lens prompts below through the specified route. Run reviewers in parallel when the tool permits it.
+6. Verify each reviewer produced output.
+7. Deduplicate findings, apply lead judgment, and return the verdict format.
 
 | Scope size | Default reviewers |
 | --- | --- |
@@ -35,25 +37,25 @@ Use independent reviewers to attack whether the work achieves the stated intent.
 
 ## Reviewer Route Selection
 
-Use the first route that matches the user request and available tools.
+Use only the route explicitly specified by the user. Do not infer a route from availability, preference, or perceived independence.
 
 | Route | Use when | Independence |
 | --- | --- | --- |
-| Cross-tool reviewer | The user asks for another tool, or another agent CLI is available, such as Codex calling Claude Code or Claude calling Codex | Highest |
-| Same-tool subagent | The user asks to use the same tool, or subagent/multi-agent delegation is available | Good if isolated |
-| Same-tool CLI session | The same agent CLI can start a fresh non-interactive session | Moderate |
-| Single-agent fallback | No delegation route is available | Lowest; label clearly |
+| Cross-tool reviewer | The user asks for another tool, such as Codex calling Claude Code or Claude calling Codex | Highest |
+| Same-tool subagent | The user asks to use same-tool subagents or multi-agent delegation | Good if isolated |
+| Same-tool CLI session | The user asks for a fresh non-interactive session from the same agent CLI | Moderate |
+| Single-agent fallback | The user asks for manual fallback, or approves it after a requested independent route fails | Lowest; label clearly |
 
-If the route is not obvious, choose cross-tool when available; otherwise choose same-tool subagents; otherwise fall back and disclose the limitation.
+If the route is missing, ask the user to choose one of the routes above. If the requested route is unavailable, report the exact blocker and ask whether to switch routes. Do not silently substitute a different route.
 
 ### Route Discovery
 
-Before dispatch, probe only the routes you might use and record the result in `Reviewer Setup`.
+Before dispatch, probe only the user-specified route and record the result in `Reviewer Setup`.
 
 - Cross-tool CLI: check whether the requested CLI is available, such as `command -v codex` or `command -v claude`.
 - Same-tool subagent: confirm the current host exposes a subagent or delegation primitive and note the spawned agent/session id.
 - Same-tool CLI: check whether the current tool can start a fresh non-interactive reviewer session.
-- Fallback: if no independent route works, label the route `single-agent fallback`.
+- Fallback: only use `single-agent fallback` when the user requested it or approved it after a requested independent route failed.
 
 ### CLI Adapter Examples
 
@@ -237,4 +239,4 @@ Verdict logic:
 
 ## Fallback Behavior
 
-If no independent reviewer can be spawned, run the lenses yourself in separate passes and label the route `single-agent fallback`. Keep the verdict useful, but be explicit that independence was not achieved.
+If no independent reviewer can be spawned, report the blocker and ask whether to use `single-agent fallback`. Only after the user requests or approves fallback should you run the lenses yourself in separate passes. Keep the verdict useful, but be explicit that independence was not achieved.
