@@ -1,33 +1,36 @@
 ---
 name: adversarial-review
-description: Use when reviewing code, plans, diffs, pull requests, implementations, or agent output where an independent adversarial reviewer should challenge correctness, architecture, scope, assumptions, verification, or unnecessary complexity.
+description: Use when reviewing code, plans, diffs, pull requests, implementations, or agent output where an adversarial reviewer or review pass should challenge correctness, architecture, scope, assumptions, verification, or unnecessary complexity.
 ---
 
 # Adversarial Review
 
-Use independent reviewers to attack whether the work achieves the stated intent. The deliverable is a verdict, not edits. Do not modify files during this skill unless the user explicitly asks for remediation after the review.
+Use an explicit reviewer route to attack whether the work achieves the stated intent. Adversarial review is a falsification exercise, not a second implementation pass: the lead frames a claim under test, reviewers or review passes try to disprove the strongest version of that claim with concrete counterexamples, and synthesis decides whether those counterexamples change the verdict. The deliverable is a verdict, not edits. Do not modify files during this skill unless the user explicitly asks for remediation after the review.
 
 ## Core Rules
 
-- The user must explicitly specify the reviewer route: same tool, different tool, specific CLI, subagent, or manual fallback.
+- The user must explicitly specify the reviewer route: same tool, different tool, specific CLI, subagent, or single-agent manual review.
 - If the user has not specified a reviewer route, stop and ask which route to use before dispatching reviewers.
 - Stronger independence is desirable, but it is not a reason to override or infer the route. A well-isolated same-tool subagent is valid when the user specifies it.
+- Frame a falsifiable `Claim under test` before dispatch. Include success criteria, failure conditions, and non-goals when they are known.
+- Steelman the intent before attacking it. Review the strongest defensible version of the work, not a weak caricature.
 - Keep reviewer context minimal: intent, scope, evidence, assigned lens, and the review contract. Do not pass the lead agent's draft conclusions.
 - Reviewers must be read-only by default. If a reviewer cannot be constrained to read-only, send a static review packet instead of workspace access.
 - Reviewer tools should load their normal user and project configuration by default so local rules, policies, and team conventions are respected.
 - Missing reviewer output is evidence. Report it; do not silently synthesize around it.
 - Adversarial does not mean hostile. Findings need concrete failure scenarios, file or artifact references, and actionable recommendations.
+- Every accepted finding must state `Verdict impact`: why it changes, blocks, or does not change `PASS`, `CONTESTED`, or `REJECT`.
 - Do not install a missing reviewer tool just to run this skill unless the user explicitly approves installation. If the requested route cannot run, report the failed route and ask whether to use another route.
 
 ## Workflow
 
-1. State the intent in one or two sentences.
+1. State the intent in one or two sentences, then frame the `Claim under test`: what must be true for this work to count as successful, plus success criteria and failure conditions.
 2. Freeze the review scope: current diff, staged diff, commit range, PR, plan, files, or user-provided artifact.
 3. Confirm the user-specified reviewer route. If it is missing or ambiguous, ask the user which route to use and stop until they answer.
 4. Collect evidence. For git work, prefer `git status --short`, `git diff --stat`, and the relevant `git diff` or PR diff. If there is no git repo, list the files or artifact sections being reviewed.
 5. Choose reviewers from the risk table and dispatch them with the lens prompts below through the specified route. Run reviewers in parallel when the tool permits it.
 6. Verify each reviewer produced output.
-7. Deduplicate findings, apply lead judgment, and return the verdict format.
+7. Deduplicate findings, apply lead judgment, record `Verdict impact` for accepted findings, and return the verdict format.
 
 Risk overrides size. Changed-line count is only the starting signal; upgrade the reviewer set when the change touches security, privacy, data loss, migrations, concurrency, permissions, dependency changes, or external publishing.
 
@@ -46,7 +49,7 @@ Use only the route explicitly specified by the user. Do not infer a route from a
 | Cross-tool reviewer | The user asks for another tool, such as Codex calling Claude Code or Claude calling Codex | Highest |
 | Same-tool subagent | The user asks to use same-tool subagents or multi-agent delegation | Good if isolated |
 | Same-tool CLI session | The user asks for a fresh non-interactive session from the same agent CLI | Moderate |
-| Single-agent fallback | The user asks for manual fallback, or approves it after a requested independent route fails | Lowest; label clearly |
+| Single-agent manual review | The user asks the lead to run the lenses itself | None; label clearly |
 
 If the route is missing, ask the user to choose one of the routes above. If the requested route is unavailable, report the exact blocker and ask whether to switch routes. Do not silently substitute a different route.
 
@@ -57,7 +60,7 @@ Before dispatch, probe only the user-specified route and record the result in `R
 - Cross-tool CLI: check whether the requested CLI is available, such as `command -v codex` or `command -v claude`.
 - Same-tool subagent: confirm the current host exposes a subagent or delegation primitive and note the spawned agent/session id.
 - Same-tool CLI: check whether the current tool can start a fresh non-interactive reviewer session.
-- Fallback: only use `single-agent fallback` when the user requested it or approved it after a requested independent route failed.
+- Single-agent manual review: use when the user specified this route, and record that no independent reviewer was used.
 
 ### CLI Adapter Examples
 
@@ -167,6 +170,8 @@ Challenge correctness, completeness, and verification.
 Ask:
 
 - What inputs, states, or sequences break this?
+- What would make the claim false?
+- What is the smallest counterexample that disproves the claim?
 - What error paths are unhandled or silently swallowed?
 - What race conditions, ordering dependencies, or state leaks exist?
 - What assumptions are asserted but not proven?
@@ -179,6 +184,7 @@ Challenge structural fitness.
 Ask:
 
 - Does the design serve the stated goal, or a goal the author assumed?
+- Does the structure support the claim under test, or only a narrower happy path?
 - Where do responsibilities leak across boundaries?
 - Which coupling points will hurt when requirements shift?
 - What implicit assumptions about scale, concurrency, persistence, or ownership will break first?
@@ -191,6 +197,7 @@ Challenge necessity and complexity.
 Ask:
 
 - What can be deleted without losing the stated goal?
+- Which parts are unnecessary for the claim under test?
 - Where is the author solving a future problem without evidence?
 - What abstractions exist for a single concrete use case?
 - Where did configuration or flexibility appear without a second real consumer?
@@ -206,6 +213,18 @@ You are an adversarial reviewer. Do not edit files.
 Intent:
 [state the author's intended outcome]
 
+Claim under test:
+[state the falsifiable claim being reviewed]
+
+Success criteria:
+[what must be true for the claim to hold]
+
+Failure conditions:
+[what would make the claim false]
+
+Non-goals:
+[what is outside the claim, if known]
+
 Scope:
 [diff, files, PR, plan, artifact, or exact sections under review]
 
@@ -219,9 +238,12 @@ Lens instructions:
 [paste the full lens definition from this skill]
 
 Review contract:
+- Steelman the intent before attacking it.
 - Find real problems, not style preferences.
+- Look for the smallest counterexample that would make the claim false.
 - Cite concrete files, lines, commands, artifacts, or missing evidence when possible.
 - Explain the failure scenario for each finding.
+- Explain `Verdict impact`: whether and why the finding changes `PASS`, `CONTESTED`, or `REJECT`.
 - Rate severity as high, medium, or low.
 - Recommend a concrete action.
 - If you find no issue, say so and name the evidence that made you confident.
@@ -232,17 +254,20 @@ Output format:
 1. **[severity] Finding title**
    - Evidence:
    - Failure scenario:
+   - Verdict impact:
    - Recommendation:
 ```
 
 ## Synthesis Rules
 
 - Read every reviewer output before deciding.
+- Synthesize against the `Claim under test`, not general preferences or unasked-for goals.
 - Mark missing or empty outputs in `Reviewer Setup`.
 - Merge duplicate findings, preserving all lenses that raised them.
 - Accept only findings that are grounded in evidence or a plausible failure path.
 - Reject false positives explicitly. Adversarial reviewers are expected to overreach sometimes.
 - If verification is missing, distinguish "known broken" from "not proven".
+- For every accepted finding, state `Verdict impact`; if it does not affect the final verdict, explain why it remains residual risk instead of a blocker.
 
 ## Verdict Format
 
@@ -250,9 +275,12 @@ Output format:
 ## Intent
 <what the work is trying to achieve>
 
+## Claim Under Test
+<falsifiable claim, success criteria, failure conditions, and known non-goals>
+
 ## Reviewer Setup
 - Lead: <current agent/tool>
-- Route: <cross-tool | same-tool subagent | same-tool CLI | single-agent fallback>
+- Route: <cross-tool | same-tool subagent | same-tool CLI | single-agent manual review>
 - Reviewers: <lens -> tool/session/output status>
 - Config posture: <normal local config loaded | custom config | unknown>
 - Permission posture: <read-only | static packet | tools disabled | other>
@@ -269,6 +297,7 @@ For each finding:
 - **[severity]** <description with concrete evidence>
 - Raised by: <lens names>
 - Failure scenario: <what could go wrong>
+- Verdict impact: <why this changes or does not change the verdict>
 - Recommendation: <specific next action>
 - Lead judgment: <accept | reject> - <brief rationale>
 
@@ -285,6 +314,6 @@ Verdict logic:
 - `CONTESTED`: at least one high-severity claim is plausible but disputed, unverified, or blocked by missing evidence. Also use this when multiple accepted medium findings make the work risky to ship even without a single blocker.
 - `REJECT`: at least one accepted high-severity finding blocks the stated intent.
 
-## Fallback Behavior
+## Unavailable Route Behavior
 
-If no independent reviewer can be spawned, report the blocker and ask whether to use `single-agent fallback`. Only after the user requests or approves fallback should you run the lenses yourself in separate passes. Keep the verdict useful, but be explicit that independence was not achieved.
+If the requested route cannot be spawned, report the blocker and ask whether the user wants to choose another route. Do not switch to single-agent manual review unless the user specifies that route. Keep the verdict useful, but be explicit when independence was not achieved.

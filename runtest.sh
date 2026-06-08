@@ -70,6 +70,8 @@ for required in (
     "Skeptic",
     "Architect",
     "Minimalist",
+    "At its core, the skill treats adversarial review as falsification",
+    "falsifiable claim under test",
     "checks whether the work is correct, complete, and verified",
     "checks whether the structure, boundaries, and contracts fit the stated goal",
     "checks whether the work can be simpler, smaller, or less speculative",
@@ -90,6 +92,7 @@ for forbidden in (
     "cp -R skills/adversarial-review .codex/skills/",
     "For Codex workspaces, keep the skill project-local when possible",
     "Before publishing, also verify from a fresh clone",
+    "single-agent fallback",
 ):
     if forbidden in readme_text:
         raise SystemExit(f"README.md contains outdated documentation text: {forbidden}")
@@ -112,6 +115,8 @@ for required in (
     "Skeptic",
     "Architect",
     "Minimalist",
+    "证伪",
+    "被测主张",
     "检查工作是否正确、完整，并且已经被充分验证",
     "检查结构、边界和契约是否服务于既定目标",
     "检查实现是否可以更简单、更小、更少猜测",
@@ -132,6 +137,7 @@ for forbidden in (
     "cp -R skills/adversarial-review .codex/skills/",
     "对于 Codex workspace",
     "发布前，还要从全新克隆中验证",
+    "单 agent 兜底",
 ):
     if forbidden in readme_zh_text:
         raise SystemExit(f"README-zh.md contains outdated documentation text: {forbidden}")
@@ -142,6 +148,14 @@ if "The user must explicitly specify the reviewer route" not in skill_text:
 for required in (
     "Risk overrides size",
     "security, privacy, data loss, migrations, concurrency, permissions, dependency changes, or external publishing",
+    "Adversarial review is a falsification exercise",
+    "Claim under test",
+    "success criteria",
+    "failure conditions",
+    "Steelman the intent before attacking it",
+    "What would make the claim false?",
+    "smallest counterexample",
+    "Verdict impact",
     "mktemp -d -t adversarial-review.XXXXXX",
     "trap 'rm -rf \"$REVIEW_WORK_DIR\"' EXIT",
     "command -v codex",
@@ -153,9 +167,13 @@ for required in (
 
 for forbidden in (
     "mktemp -d /tmp/adversarial-review.XXXXXX",
+    "single-agent fallback",
+    "manual fallback",
+    "Fallback Behavior",
+    "after a requested independent route failed",
 ):
     if forbidden in skill_text:
-        raise SystemExit(f"SKILL.md contains unsafe CLI example text: {forbidden}")
+        raise SystemExit(f"SKILL.md contains outdated or unsafe workflow text: {forbidden}")
 
 workflow_requirements = {
     "route missing asks instead of infers": (
