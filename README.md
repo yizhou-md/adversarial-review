@@ -67,6 +67,8 @@ The user should name the route to use. The skill does not choose a route just be
 
 Reviewer tools should load normal user and project configuration by default. That keeps local rules, team policies, and project conventions active during review. Reviewers should still be read-only by default; if a route cannot be constrained, pass a static review packet instead of workspace access.
 
+Independence and permission posture are separate. A cross-tool reviewer can be more independent while still lacking a filesystem read-only sandbox; tool restrictions are not filesystem sandboxes, so the skill records the actual posture instead of upgrading it in the verdict. For Claude Code, a static review packet with disabled tools is recorded as `static packet / tools disabled`; live workspace access through plan mode or tool controls is recorded as `tool-restricted plan mode` or the exact posture used.
+
 ## When Not To Use
 
 - Do not use this skill for quick self-checks where the user has not asked for a specific adversarial route.

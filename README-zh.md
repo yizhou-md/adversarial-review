@@ -67,6 +67,8 @@ Use $adversarial-review to review this diff with a Codex subagent and Claude Cod
 
 默认情况下，评审工具应加载正常的用户配置和项目配置。这样可以让本地规则、团队政策和项目约定在评审期间保持生效。评审者默认仍应保持只读；如果某条路径无法被限制权限，就传入静态评审包，而不是提供 workspace 访问权限。
 
+独立性和权限姿态是两件事。跨工具评审可以更独立，但不一定拥有文件系统只读沙箱；工具限制不等于文件系统沙箱，所以技能应记录真实权限姿态，而不是在结论中把它升格。对 Claude Code 来说，静态评审包加禁用工具应记录为 `static packet / tools disabled`；通过 plan mode 或工具控制访问 live workspace 时，应记录为 `tool-restricted plan mode` 或实际使用的权限姿态。
+
 ## 何时不使用
 
 - 不要把这个技能用于普通快速自检；用户没有要求明确的对抗式评审路径时，不应主动启动它。

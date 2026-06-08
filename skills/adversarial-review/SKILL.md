@@ -64,8 +64,10 @@ Before dispatch, probe only the user-specified route and record the result in `R
 
 ### CLI Adapter Examples
 
-CLI flags change. Check `--help` in the active environment before first use.
+CLI flags change. Check the active adapter help before first use, such as `codex exec --help` and `claude --help`.
 Use normal local configuration by default. Prefer ephemeral or no-session-persistence modes when available so reviewer conversations are not retained unnecessarily, but do not suppress user or project rules just to make the review more "portable". Record the configuration posture in `Reviewer Setup`.
+
+Permission posture is separate from reviewer independence. Codex `--sandbox read-only` is the adapter's filesystem read-only sandbox posture when the active host enforces that mode. Claude Code tool controls such as `--tools ""`, `--allowedTools`, `--disallowedTools`, or `--permission-mode plan` are tool restrictions, and tool restrictions are not filesystem sandboxes. A Claude Code static-packet reviewer with disabled tools should be recorded as `static packet / tools disabled`; a Claude Code reviewer with live workspace access through plan mode or tool controls should be recorded as `tool-restricted plan mode` or the exact posture used, and must not be reported as filesystem read-only unless the host provides a named filesystem sandbox.
 
 Codex reviewer example:
 
@@ -133,6 +135,7 @@ claude \
   --print \
   --no-session-persistence \
   --output-format text \
+  --permission-mode plan \
   --tools "" \
   < "$PROMPT_FILE" \
   > "$OUTPUT_FILE"
@@ -143,7 +146,9 @@ test -s "$OUTPUT_FILE" || {
 }
 ```
 
-If a Claude reviewer must inspect the workspace directly instead of a static packet, constrain it with that host's read-only, planning, or tool-deny mode and record the exact permission posture.
+When using this static-packet example, record the permission posture as `static packet / tools disabled`. The `--permission-mode plan` flag is an extra guard, but because the reviewer receives a static packet and `--tools ""` disables tools, this route must not be recorded as `tool-restricted plan mode` and must not be reported as filesystem read-only.
+
+If a Claude reviewer must inspect the workspace directly instead of a static packet, probe the active `claude --help`, constrain it with planning or tool-deny controls when available, and record the exact permission posture. Tool-deny or plan-mode controls must not be reported as filesystem read-only.
 
 Same-tool subagent adapter:
 
@@ -281,9 +286,9 @@ Output format:
 ## Reviewer Setup
 - Lead: <current agent/tool>
 - Route: <cross-tool | same-tool subagent | same-tool CLI | single-agent manual review>
-- Reviewers: <lens -> tool/session/output status>
+- Reviewers: <lens -> tool; session; config posture; permission posture; output status>
 - Config posture: <normal local config loaded | custom config | unknown>
-- Permission posture: <read-only | static packet | tools disabled | other>
+- Permission posture summary: <filesystem read-only sandbox | static packet / tools disabled | tool-restricted plan mode | mixed | unknown | other>
 - Scope: <diff/files/PR/plan/artifact>
 - Missing evidence: <none, or exact gaps>
 
@@ -310,6 +315,7 @@ For each finding:
 
 Verdict logic:
 
+- Use `mixed` in `Permission posture summary` when reviewers used different permission postures, and keep each exact posture in the per-reviewer `Reviewers` entry.
 - `PASS`: no accepted high-severity findings.
 - `CONTESTED`: at least one high-severity claim is plausible but disputed, unverified, or blocked by missing evidence. Also use this when multiple accepted medium findings make the work risky to ship even without a single blocker.
 - `REJECT`: at least one accepted high-severity finding blocks the stated intent.
