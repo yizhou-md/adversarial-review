@@ -5,13 +5,15 @@ description: Use when reviewing code, plans, diffs, pull requests, implementatio
 
 # Adversarial Review
 
-Use an explicit reviewer route to attack whether the work achieves the stated intent. Adversarial review is a falsification exercise, not a second implementation pass: the lead frames a claim under test, reviewers or review passes try to disprove the strongest version of that claim with concrete counterexamples, and synthesis decides whether those counterexamples change the verdict. The deliverable is a verdict, not edits. Do not modify files during this skill unless the user explicitly asks for remediation after the review.
+Use a requested or default reviewer route to attack whether the work achieves the stated intent. Adversarial review is a falsification exercise, not a second implementation pass: the lead frames a claim under test, reviewers or review passes try to disprove the strongest version of that claim with concrete counterexamples, and synthesis decides whether those counterexamples change the verdict. The deliverable is a verdict, not edits. Do not modify files during this skill unless the user explicitly asks for remediation after the review.
 
 ## Core Rules
 
-- The user must explicitly specify the reviewer route: same tool, different tool, specific CLI, subagent, or single-agent manual review.
-- If the user has not specified a reviewer route, stop and ask which route to use before dispatching reviewers.
-- Stronger independence is desirable, but it is not a reason to override or infer the route. A well-isolated same-tool subagent is valid when the user specifies it.
+- Do not require users to know route names before they can use this skill.
+- If the user provides a reviewer route, use that route: same tool, different tool, specific CLI, subagent, or single-agent manual review.
+- If no route is provided in an interactive turn, present the route options, recommend same-tool subagent, and ask before dispatching reviewers. Interactive mode means the lead can ask the user a follow-up and reasonably wait for an answer.
+- If no route is provided in a non-interactive or automation context, default to same-tool subagent.
+- Stronger independence is desirable, but it is not a reason to override a requested route or invent an availability-ranked route. A well-isolated same-tool subagent is the recommended default.
 - Frame a falsifiable `Claim under test` before dispatch. Include success criteria, failure conditions, and non-goals when they are known.
 - Steelman the intent before attacking it. Review the strongest defensible version of the work, not a weak caricature.
 - Keep reviewer context minimal: intent, scope, evidence, assigned lens, and the review contract. Do not pass the lead agent's draft conclusions.
@@ -20,15 +22,15 @@ Use an explicit reviewer route to attack whether the work achieves the stated in
 - Missing reviewer output is evidence. Report it; do not silently synthesize around it.
 - Adversarial does not mean hostile. Findings need concrete failure scenarios, file or artifact references, and actionable recommendations.
 - Every accepted finding must state `Verdict impact`: why it changes, blocks, or does not change `PASS`, `CONTESTED`, or `REJECT`.
-- Do not install a missing reviewer tool just to run this skill unless the user explicitly approves installation. If the requested route cannot run, report the failed route and ask whether to use another route.
+- Do not install a missing reviewer tool just to run this skill unless the user explicitly approves installation. If the resolved route cannot run, report the failed route and ask whether to use another route.
 
 ## Workflow
 
 1. State the intent in one or two sentences, then frame the `Claim under test`: what must be true for this work to count as successful, plus success criteria and failure conditions.
 2. Freeze the review scope: current diff, staged diff, commit range, PR, plan, files, or user-provided artifact.
-3. Confirm the user-specified reviewer route. If it is missing or ambiguous, ask the user which route to use and stop until they answer.
+3. Resolve the reviewer route. Use the requested route when provided; if the route is missing in an interactive turn, show the route options, recommend same-tool subagent, and ask the user to choose; if the route is missing in a non-interactive or automation context, use same-tool subagent as the default route.
 4. Collect evidence. For git work, prefer `git status --short`, `git diff --stat`, and the relevant `git diff` or PR diff. If there is no git repo, list the files or artifact sections being reviewed.
-5. Choose reviewers from the risk table and dispatch them with the lens prompts below through the specified route. Run reviewers in parallel when the tool permits it.
+5. Choose reviewers from the risk table and dispatch them with the lens prompts below through the resolved route. Run reviewers in parallel when the tool permits it.
 6. Verify each reviewer produced output.
 7. Deduplicate findings, apply lead judgment, record `Verdict impact` for accepted findings, and return the verdict format.
 
@@ -42,25 +44,25 @@ Risk overrides size. Changed-line count is only the starting signal; upgrade the
 
 ## Reviewer Route Selection
 
-Use only the route explicitly specified by the user. Do not infer a route from availability, preference, or perceived independence.
+Use the requested route when the user names one. When the route is missing, resolve it by context rather than blocking the whole review. Do not infer a route from availability, preference, or perceived independence.
 
 | Route | Use when | Independence |
 | --- | --- | --- |
 | Cross-tool reviewer | The user asks for another tool, such as Codex calling Claude Code or Claude calling Codex | Highest |
-| Same-tool subagent | The user asks to use same-tool subagents or multi-agent delegation | Good if isolated |
+| Same-tool subagent | The user asks for subagents, accepts the recommendation, or no route is provided in non-interactive automation | Good if isolated |
 | Same-tool CLI session | The user asks for a fresh non-interactive session from the same agent CLI | Moderate |
 | Single-agent manual review | The user asks the lead to run the lenses itself | None; label clearly |
 
-If the route is missing, ask the user to choose one of the routes above. If the requested route is unavailable, report the exact blocker and ask whether to switch routes. Do not silently substitute a different route.
+If the route is missing in an interactive turn, show the route options, recommend same-tool subagent, and ask the user to choose. If the route is missing in a non-interactive or automation context, use same-tool subagent as the default route. If the requested or default route is unavailable, report the exact blocker and ask whether to switch routes when interaction is possible. Do not silently substitute a different route.
 
 ### Route Discovery
 
-Before dispatch, probe only the user-specified route and record the result in `Reviewer Setup`.
+Before dispatch, probe only the resolved route and record the result in `Reviewer Setup`.
 
 - Cross-tool CLI: check whether the requested CLI is available, such as `command -v codex` or `command -v claude`.
 - Same-tool subagent: confirm the current host exposes a subagent or delegation primitive and note the spawned agent/session id.
 - Same-tool CLI: check whether the current tool can start a fresh non-interactive reviewer session.
-- Single-agent manual review: use when the user specified this route, and record that no independent reviewer was used.
+- Single-agent manual review: use only when the user specified this route, and record that no independent reviewer was used.
 
 ### CLI Adapter Examples
 
@@ -316,4 +318,4 @@ Verdict logic:
 
 ## Unavailable Route Behavior
 
-If the requested route cannot be spawned, report the blocker and ask whether the user wants to choose another route. Do not switch to single-agent manual review unless the user specifies that route. Keep the verdict useful, but be explicit when independence was not achieved.
+If the requested or default route cannot be spawned, report the blocker and ask whether the user wants to choose another route when interaction is possible. Do not switch to single-agent manual review unless the user specifies that route. Keep the verdict useful, but be explicit when independence was not achieved.

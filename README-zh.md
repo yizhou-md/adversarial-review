@@ -6,9 +6,9 @@
 
 它的核心是把对抗式评审当作一次证伪：先写出可证伪的被测主张，再让评审者或评审轮次寻找具体反例，最后判断这些反例是否改变结论。
 
-和普通自检不同，这个技能会把独立性说清楚。评审者必须通过用户指定的路径运行：例如由 Codex 调用 Claude Code、同一工具的 subagent、全新的同工具 CLI 会话，或者明确标注的单 agent 手动评审路径。如果用户还没有指定路径，技能会先询问，再分派评审者。
+和普通自检不同，这个技能会把独立性说清楚，但不会要求用户先记住路径名。评审者可以通过用户命名的路径运行，也可以走默认路径策略：例如由 Codex 调用 Claude Code、同一工具的 subagent、全新的同工具 CLI 会话，或者明确标注的单 agent 手动评审路径。如果交互式聊天里没有指定路径，技能会列出评审路径选项，建议使用同工具 subagent，并在分派前询问用户。在非交互式自动化场景中，默认路径是同工具 subagent。
 
-这个技能参考了公开的 [`pedronauck/skills` `adversarial-review` skill](https://claudemarketplaces.com/skills/pedronauck/skills/adversarial-review)。它保留了好用的评审视角模式，并针对 Codex 调整了路径策略：由用户指定评审路径，技能记录独立性状态，但不替用户给路径排序。
+这个技能参考了公开的 [`pedronauck/skills` `adversarial-review` skill](https://claudemarketplaces.com/skills/pedronauck/skills/adversarial-review)。它保留了好用的评审视角模式，并针对 Codex 调整了路径策略：用户可以指定评审路径；如果省略路径，就按上下文处理；技能记录独立性状态，但不按可用性替用户排序。
 
 ## 你会得到什么
 
@@ -33,7 +33,7 @@ pnpx skills add https://github.com/yizhou-md/adversarial-review --skill adversar
 
 ## 使用
 
-告诉 agent 要评审什么，以及走哪条评审路径：
+告诉 agent 要评审什么。你可以指定路径，但不必先知道全部路径术语：
 
 ```text
 Use $adversarial-review to review this diff with a Codex subagent and Claude Code.
@@ -43,7 +43,7 @@ Use $adversarial-review to review this diff with a Codex subagent and Claude Cod
 
 1. 把意图转成可证伪的被测主张，包括成功标准和失败条件。
 2. 冻结评审范围：diff、PR、计划、文件，或其他具体材料。
-3. 确认用户指定的评审路径；如果缺失，先询问用户。
+3. 解析评审路径：使用你指定的路径；交互式聊天缺失路径时列出选项并询问；非交互式自动化中默认使用同工具 subagent。
 4. 在路径支持时，用选定的评审视角分派评审者。
 5. 合并重复发现，并判断每个发现是否改变最终结论。
 6. 返回带有具体证据、失败场景和下一步建议的评审结论。
@@ -56,7 +56,7 @@ Use $adversarial-review to review this diff with a Codex subagent and Claude Cod
 
 ## 评审路径
 
-用户应明确指定要使用哪种路径。这个技能不会仅因为某条路径可用就自动选择它。
+你可以指定要使用哪种路径，也可以让缺省路径策略生效。这个技能不会仅因为某条路径可用就自动选择它。
 
 | 路径 | 示例 |
 | --- | --- |
@@ -65,12 +65,14 @@ Use $adversarial-review to review this diff with a Codex subagent and Claude Cod
 | 同工具 CLI 会话 | Codex 启动一个新的 `codex exec` 评审者 |
 | 单 agent 手动评审 | 主 agent 自己运行每个评审视角，并标注没有独立评审者 |
 
+如果交互式聊天省略路径，技能应展示上表，建议同工具 subagent，并在分派前询问用户。在非交互式自动化中，同工具 subagent 是固定默认路径。如果指定路径或默认路径不可用，技能会报告阻塞原因，而不是静默切换到另一条路径。
+
 默认情况下，评审工具应加载正常的用户配置和项目配置。这样可以让本地规则、团队政策和项目约定在评审期间保持生效。评审者默认仍应保持只读；如果某条路径无法被限制权限，就传入静态评审包，而不是提供 workspace 访问权限。
 
 ## 何时不使用
 
-- 不要把这个技能用于普通快速自检；用户没有要求明确的对抗式评审路径时，不应主动启动它。
-- 不要在用户没有指定评审路径时直接使用；应先询问要走哪条路径。
+- 不要把这个技能用于普通快速自检；用户没有要求对抗式评审时，不应主动启动它。
+- 不要把默认路径当成安装缺失工具或静默切换路径的许可。
 - 不要把它当作编辑或修复流程；除非用户在评审后明确要求修复，否则这个技能只产出评审结论。
 - 不要把它用于只涉及风格、格式化或 lint 清理的问题；这类任务通常不需要对抗式风险评审。
 
