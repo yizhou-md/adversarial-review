@@ -6,9 +6,9 @@ Ship with fewer blind spots.
 
 At its core, the skill treats adversarial review as falsification: frame a claim under test, send reviewers or review passes to look for concrete counterexamples, then decide whether those counterexamples change the verdict.
 
-Unlike a casual self-check, this skill keeps independence explicit. Reviewers run through a user-specified route: another tool such as Codex calling Claude Code, a same-tool subagent, a fresh same-tool CLI session, or a clearly labeled single-agent manual route. If the user has not named the route, the skill asks before dispatching anyone.
+Unlike a casual self-check, this skill keeps independence explicit without making users memorize route names first. Reviewers run through either a route the user names or the default route policy: another tool such as Codex calling Claude Code, a same-tool subagent, a fresh same-tool CLI session, or a clearly labeled single-agent manual route. If no route is named in an interactive chat, the skill shows the route options, recommends same-tool subagent, and asks before dispatching reviewers. In non-interactive automation, the default route is same-tool subagent.
 
-The skill references the public [`pedronauck/skills` `adversarial-review` skill](https://claudemarketplaces.com/skills/pedronauck/skills/adversarial-review). It keeps the useful reviewer-lens pattern, then adapts the route policy for Codex: the user chooses the route, and the skill records independence posture without ranking routes for them.
+The skill references the public [`pedronauck/skills` `adversarial-review` skill](https://claudemarketplaces.com/skills/pedronauck/skills/adversarial-review). It keeps the useful reviewer-lens pattern, then adapts the route policy for Codex: the user may choose the route, omitted routes resolve by context, and the skill records independence posture without ranking routes by availability.
 
 ## What You Get
 
@@ -33,7 +33,7 @@ pnpx skills add https://github.com/yizhou-md/adversarial-review --skill adversar
 
 ## Use
 
-Tell your agent what to review and which route to use:
+Tell your agent what to review. You may name a route, but you do not have to know the route vocabulary before using the skill:
 
 ```text
 Use $adversarial-review to review this diff with a Codex subagent and Claude Code.
@@ -43,7 +43,7 @@ The skill will:
 
 1. Turn the intent into a falsifiable claim under test, including success criteria and failure conditions.
 2. Freeze the review scope: diff, PR, plan, files, or another concrete artifact.
-3. Confirm the user-specified reviewer route, asking for one if it is missing.
+3. Resolve the reviewer route: use the route you named, ask with options in interactive chat, or default to same-tool subagent in non-interactive automation.
 4. Dispatch reviewers with the selected lenses when the route supports it.
 5. Deduplicate findings and judge whether each one changes the final verdict.
 6. Return the verdict with concrete evidence, failure scenarios, and recommended next actions.
@@ -56,7 +56,7 @@ The skill will:
 
 ## Reviewer Routes
 
-The user should name the route to use. The skill does not choose a route just because it is available.
+You can name the route to use, or let the missing-route policy apply. The skill does not choose a route just because it is available.
 
 | Route | Example |
 | --- | --- |
@@ -65,14 +65,16 @@ The user should name the route to use. The skill does not choose a route just be
 | Same-tool CLI session | Codex starts a fresh `codex exec` reviewer |
 | Single-agent manual review | The lead runs each lens itself and labels that no independent reviewer was used |
 
+If an interactive chat omits the route, the skill should show the table above, recommend same-tool subagent, and ask before dispatching reviewers. In non-interactive automation, same-tool subagent is the fixed default. If the requested or default route is unavailable, the skill reports the blocker instead of silently switching to another route.
+
 Reviewer tools should load normal user and project configuration by default. That keeps local rules, team policies, and project conventions active during review. Reviewers should still be read-only by default; if a route cannot be constrained, pass a static review packet instead of workspace access.
 
 Independence and permission posture are separate. A cross-tool reviewer can be more independent while still lacking a filesystem read-only sandbox; tool restrictions are not filesystem sandboxes, so the skill records the actual posture instead of upgrading it in the verdict. For Claude Code, a static review packet with disabled tools is recorded as `static packet / tools disabled`; live workspace access through plan mode or tool controls is recorded as `tool-restricted plan mode` or the exact posture used.
 
 ## When Not To Use
 
-- Do not use this skill for quick self-checks where the user has not asked for a specific adversarial route.
-- Do not use it when the user has not specified a reviewer route; ask for the route first.
+- Do not use this skill for quick self-checks where the user has not asked for adversarial review.
+- Do not treat the default route as permission to install missing tools or silently switch routes.
 - Do not use it as an editing or remediation workflow unless the user explicitly asks for fixes after the review.
 - Do not use it for style-only proofreading, formatting, or lint cleanup where no adversarial risk review is needed.
 

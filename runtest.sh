@@ -52,14 +52,16 @@ route_policy_forbidden = (
     "best available route",
     "Use the first route",
     "If the route is not obvious, choose",
+    "must explicitly specify the reviewer route",
+    "If the user has not specified a reviewer route, stop",
+    "Do not use it when the user has not specified a reviewer route",
+    "必须通过用户指定",
+    "不要在用户没有指定评审路径时直接使用",
 )
 for forbidden in route_policy_forbidden:
-    for path in (readme, skill):
+    for path in (readme, readme_zh, skill):
         if forbidden in path.read_text():
             raise SystemExit(f"{path} contains automatic route selection language: {forbidden}")
-
-if "user-specified route" not in readme.read_text():
-    raise SystemExit("README.md must explain that reviewers run through a user-specified route")
 
 readme_text = readme.read_text()
 
@@ -232,6 +234,8 @@ for required in (
     "checks whether the work is correct, complete, and verified",
     "checks whether the structure, boundaries, and contracts fit the stated goal",
     "checks whether the work can be simpler, smaller, or less speculative",
+    "If no route is named in an interactive chat, the skill shows the route options, recommends same-tool subagent, and asks before dispatching reviewers.",
+    "In non-interactive automation, the default route is same-tool subagent.",
 ):
     if required not in readme_text:
         raise SystemExit(f"README.md missing required documentation text: {required}")
@@ -261,9 +265,6 @@ readme_zh_text = readme_zh.read_text()
 if "最佳路径" in readme_zh_text:
     raise SystemExit("README-zh.md contains automatic route selection language: 最佳路径")
 
-if "用户指定" not in readme_zh_text:
-    raise SystemExit("README-zh.md must explain that reviewers run through a user-specified route")
-
 for required in (
     "pnpx skills add https://github.com/yizhou-md/adversarial-review --skill adversarial-review",
     "pedronauck/skills",
@@ -277,6 +278,8 @@ for required in (
     "检查工作是否正确、完整，并且已经被充分验证",
     "检查结构、边界和契约是否服务于既定目标",
     "检查实现是否可以更简单、更小、更少猜测",
+    "如果交互式聊天里没有指定路径，技能会列出评审路径选项，建议使用同工具 subagent，并在分派前询问用户。",
+    "在非交互式自动化场景中，默认路径是同工具 subagent。",
 ):
     if required not in readme_zh_text:
         raise SystemExit(f"README-zh.md missing required documentation text: {required}")
@@ -299,13 +302,14 @@ for forbidden in (
     if forbidden in readme_zh_text:
         raise SystemExit(f"README-zh.md contains outdated documentation text: {forbidden}")
 
-if "The user must explicitly specify the reviewer route" not in skill_text:
-    raise SystemExit("SKILL.md must require an explicit user-specified reviewer route")
-
 for required in (
     "Risk overrides size",
     "security, privacy, data loss, migrations, concurrency, permissions, dependency changes, or external publishing",
     "Adversarial review is a falsification exercise",
+    "Do not require users to know route names before they can use this skill",
+    "If no route is provided in an interactive turn, present the route options, recommend same-tool subagent, and ask before dispatching reviewers",
+    "If no route is provided in a non-interactive or automation context, default to same-tool subagent",
+    "Interactive mode means the lead can ask the user a follow-up and reasonably wait for an answer",
     "Claim under test",
     "success criteria",
     "failure conditions",
@@ -342,8 +346,9 @@ for forbidden in (
         raise SystemExit(f"SKILL.md contains outdated or unsafe workflow text: {forbidden}")
 
 workflow_requirements = {
-    "route missing asks instead of infers": (
-        "If the route is missing, ask the user to choose",
+    "route missing asks or defaults by context": (
+        "If the route is missing in an interactive turn, show the route options, recommend same-tool subagent, and ask the user to choose",
+        "If the route is missing in a non-interactive or automation context, use same-tool subagent as the default route",
         "Do not silently substitute a different route",
     ),
     "reviewers are read-only by default": (
