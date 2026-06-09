@@ -224,16 +224,25 @@ assert_allows_codex_only_claim(
 for required in (
     "pnpx skills add https://github.com/yizhou-md/adversarial-review --skill adversarial-review",
     "pedronauck/skills",
+    "[English](README.md) | [简体中文](README-zh.md)",
+    "Ship with fewer blind spots.",
+    "`adversarial-review` is a Codex skill.",
+    "## What Problem It Solves",
+    "## How It Works",
     "## Reviewer Lenses",
+    "## Reviewer Routes (Who Reviews)",
     "## When Not To Use",
     "Skeptic",
     "Architect",
     "Minimalist",
-    "At its core, the skill treats adversarial review as falsification",
     "falsifiable claim under test",
-    "checks whether the work is correct, complete, and verified",
-    "checks whether the structure, boundaries, and contracts fit the stated goal",
-    "checks whether the work can be simpler, smaller, or less speculative",
+    "falsification",
+    "Frame the hypothesis",
+    "Look for independent counterexamples",
+    "Decide the verdict",
+    "| `Skeptic` | Checks whether the work is correct, complete, and verified. |",
+    "| `Architect` | Checks whether the structure, boundaries, and contracts fit the stated goal. |",
+    "| `Minimalist` | Checks whether the work can be simpler, smaller, or less speculative. |",
     "If no route is named in an interactive chat, the skill shows the route options, recommends same-tool subagent, and asks before dispatching reviewers.",
     "In non-interactive automation, the default route is same-tool subagent.",
 ):
@@ -254,6 +263,7 @@ for forbidden in (
     "For Codex workspaces, keep the skill project-local when possible",
     "Before publishing, also verify from a fresh clone",
     "single-agent fallback",
+    "self-contained Codex skill",
 ):
     if forbidden in readme_text:
         raise SystemExit(f"README.md contains outdated documentation text: {forbidden}")
@@ -268,16 +278,24 @@ if "最佳路径" in readme_zh_text:
 for required in (
     "pnpx skills add https://github.com/yizhou-md/adversarial-review --skill adversarial-review",
     "pedronauck/skills",
+    "[English](README.md) | [简体中文](README-zh.md)",
+    "交付前，让另一个脑子专门找反例。",
+    "## 它解决什么问题",
+    "## 它是怎么工作的",
     "## 评审视角",
+    "## 评审路径（谁来评审）",
     "## 何时不使用",
     "Skeptic",
     "Architect",
     "Minimalist",
     "证伪",
     "被测主张",
-    "检查工作是否正确、完整，并且已经被充分验证",
-    "检查结构、边界和契约是否服务于既定目标",
-    "检查实现是否可以更简单、更小、更少猜测",
+    "建立假设",
+    "独立找反例",
+    "判定结论",
+    "| `Skeptic` | 检查工作是否正确、完整，并且已经被充分验证。 |",
+    "| `Architect` | 检查结构、边界和契约是否服务于既定目标。 |",
+    "| `Minimalist` | 检查实现是否可以更简单、更小、更少猜测，避免没有证据支撑的复杂度。 |",
     "如果交互式聊天里没有指定路径，技能会列出评审路径选项，建议使用同工具 subagent，并在分派前询问用户。",
     "在非交互式自动化场景中，默认路径是同工具 subagent。",
 ):
@@ -431,16 +449,16 @@ for required in (
         raise SystemExit(f"SKILL.md missing mixed permission posture rule: {required}")
 
 for required in (
-    "Independence and permission posture are separate",
+    "Independence and permission state are separate",
     "tool restrictions are not filesystem sandboxes",
     "static packet / tools disabled",
     "tool-restricted plan mode",
 ):
     if required not in readme_text:
-        raise SystemExit(f"README.md missing permission posture guidance: {required}")
+        raise SystemExit(f"README.md missing permission state guidance: {required}")
 
 for required in (
-    "独立性和权限姿态是两件事",
+    "独立性和权限状态是两件事",
     "工具限制不等于文件系统沙箱",
     "静态评审包",
     "static packet / tools disabled",
@@ -448,7 +466,7 @@ for required in (
     "tool-restricted plan mode",
 ):
     if required not in readme_zh_text:
-        raise SystemExit(f"README-zh.md missing permission posture guidance: {required}")
+        raise SystemExit(f"README-zh.md missing permission state guidance: {required}")
 
 for path, text in (
     (skill, skill_text),
